@@ -31,9 +31,9 @@ class Translator:
     Example:
         >>> from papago import Translator
         >>> translator = Translator()
-        >>> res = translator.translate("안녕하세요", source="ko", target="en")
+        >>> res = translator.translate("Hello", source="auto")  # 자동으로 영어 감지 후 한국어로 번역!
         >>> print(res.text)
-        'Hello'
+        '안녕하세요'
     """
 
     DEFAULT_USER_AGENT: str = (
@@ -101,8 +101,8 @@ class Translator:
     def translate(
         self,
         text: str,
-        source: str = 'ko',
-        target: str = 'en',
+        source: str = 'auto',
+        target: Optional[str] = None,
         honorific: bool = False,
         use_dict: bool = True,
         dict_display: int = 30,
@@ -110,10 +110,14 @@ class Translator:
     ) -> Response:
         """원문 텍스트를 대상 언어로 번역합니다.
 
+        `source='auto'` 지정 시 원문 언어를 자동으로 감지하며:
+          - 감지된 언어가 외국어인 경우 -> 한국어('ko')로 자동 번역됩니다.
+          - 감지된 언어가 한국어('ko')인 경우 -> 영어('en')로 자동 번역됩니다.
+
         Args:
             text: 번역할 원문 문자열
-            source: 원문 언어 코드 (기본값: 'ko')
-            target: 대상 언어 코드 (기본값: 'en')
+            source: 원문 언어 코드 (기본값: 'auto' - 자동 감지)
+            target: 대상 언어 코드 (기본값: None - source='auto' 시 자동으로 설정됨)
             honorific: 높임말 옵션 적용 여부 (기본값: False, 한국어 번역 시 적용)
             use_dict: 사전 검색 결과 데이터 포함 여부 (기본값: True)
             dict_display: 사전 검색 결과 표시 최대 개수 (기본값: 30)
@@ -126,6 +130,16 @@ class Translator:
             ValueError: 지원하지 않는 소스/타겟 언어 코드가 지정된 경우 예외 발생
             Exception: 번역 API 호출 시 네트워크 오류가 발생한 경우 예외 발생
         """
+        # 언어 자동 감지 처리
+        if source == 'auto':
+            detected = self.detect(text)
+            source = detected if (detected and detected in LANGUAGES and detected != 'auto') else 'en'
+            if target is None:
+                target = 'en' if source == 'ko' else 'ko'
+        else:
+            if target is None:
+                target = 'en' if source == 'ko' else 'ko'
+
         if source not in LANGUAGES:
             raise ValueError(f'지원하지 않는 소스 언어입니다: {source}')
         if target not in LANGUAGES:

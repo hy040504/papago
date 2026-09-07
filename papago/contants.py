@@ -20,8 +20,9 @@ PAPAGO_API_URL: str = PAPAGO_TRANSLATE_URL
 # 기본 HTTP 요청 Content-Type
 DEFAULT_CONTENT_TYPE: str = 'application/x-www-form-urlencoded; charset=UTF-8'
 
-# 파파고 지원 언어 코드 및 언어명 딕셔너리
+# 파파고 지원 언어 코드 및 언어명 딕셔너리 ('auto' 언어 자동 감지 포함)
 LANGUAGES: Dict[str, str] = {
+    'auto': 'Auto Detect (자동 감지)',
     'ko': 'Korean',
     'en': 'English',
     'ja': 'Japanese',

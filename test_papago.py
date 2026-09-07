@@ -17,19 +17,17 @@ from papago import Translator
 t = Translator(verify_ssl=False)
 
 TESTS = [
-    ('ko->en 기본',       '안녕하세요',             'ko', 'en',  {}),
-    ('en->ko 기본',       'Hello, world!',           'en', 'ko',  {}),
-    ('ko->ja 일본어',     '감사합니다',              'ko', 'ja',  {}),
-    ('ko->zh-CN 중국어',  '사랑해요',                'ko', 'zh-CN', {}),
-    ('en->de 독일어',     'Good morning',            'en', 'de',  {}),
-    ('en->fr 프랑스어',   'Thank you very much',     'en', 'fr',  {}),
-    ('en->ru 러시아어',   'How are you?',            'en', 'ru',  {}),
-    ('en->ar 아랍어',     'Peace be upon you',       'en', 'ar',  {}),
-    ('ko->en 존댓말ON',   '어디 가세요?',            'ko', 'en',  {'honorific': True}),
+    ('자동감지 (영어->한국어)',  'Hello, nice to meet you!', 'auto', None, {}),
+    ('자동감지 (일어->한국어)',  'こんにちは、お元気ですか？', 'auto', None, {}),
+    ('자동감지 (불어->한국어)',  'Bonjour tout le monde',    'auto', None, {}),
+    ('자동감지 (한글->영어)',    '오늘 날씨 정말 좋네요',    'auto', None, {}),
+    ('명시적 ko->en 기본',       '안녕하세요',               'ko',   'en',  {}),
+    ('명시적 en->ko 기본',       'Hello, world!',             'en',   'ko',  {}),
+    ('명시적 ko->en 존댓말ON',   '어디 가세요?',              'ko',   'en',  {'honorific': True}),
 ]
 
 print('=' * 60)
-print('파파고 번역 API 테스트 (쿠키 불필요)')
+print('파파고 번역 API 테스트 (자동 감지 & 한국어 자동 번역)')
 print('=' * 60)
 
 # 언어 감지 테스트
