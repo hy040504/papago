@@ -1,5 +1,14 @@
-import requests
+"""
+네이버 파파고 번역 실행 클라이언트 모듈.
+
+파파고 웹 내부 API를 호출하여 텍스트 번역 및 언어 감지 기능을 수행합니다.
+별도의 API Key 또는 Cookie 인증 없이 사용이 가능합니다.
+"""
+
+from typing import Optional, Dict, Any
 import warnings
+import requests
+
 from papago.response import Response
 from papago.contants import (
     PAPAGO_TRANSLATE_URL,
@@ -10,32 +19,46 @@ from papago.contants import (
 
 
 class Translator:
-    """파파고 웹 내부 API 번역 클래스 (2026년 기준)
+    """파파고 웹 내부 API 기반 번역 실행 클라이언트 클래스.
 
-    SAZ 패킷 분석 결과:
-    - 엔드포인트: https://papago.naver.com/api/text/translation
-    - 인증 방식: 쿠키 불필요 (비로그인으로도 동작 확인)
-    - 요청 형식: application/x-www-form-urlencoded
-    - 요청 파라미터: source, target, text, dict, useGlossary, honorific, dictDisplay
+    Naver Papago 서비스의 비공식 웹 API를 활용하여
+    텍스트 번역 및 언어 감지 기능을 제공합니다.
 
-    주의: 공식 OpenAPI가 아닌 웹 내부 API를 사용합니다.
-          API 스펙이 예고 없이 변경될 수 있습니다.
+    Attributes:
+        verify_ssl (bool): SSL 인증서 검증 여부
+        user_agent (str): HTTP 요청 시 사용할 User-Agent 헤더 문자열
 
-    :param verify_ssl: SSL 인증서 검증 여부 (기본값 True, 문제 시 False로 설정)
-    :param user_agent: User-Agent 헤더 (기본값 제공)
+    Example:
+        >>> from papago import Translator
+        >>> translator = Translator()
+        >>> res = translator.translate("안녕하세요", source="ko", target="en")
+        >>> print(res.text)
+        'Hello'
     """
 
-    DEFAULT_USER_AGENT = (
+    DEFAULT_USER_AGENT: str = (
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
         'AppleWebKit/537.36 (KHTML, like Gecko) '
         'Chrome/152.0.0.0 Safari/537.36'
     )
 
-    def __init__(self, verify_ssl=True, user_agent=None):
-        self.verify_ssl = verify_ssl
-        self.user_agent = user_agent or self.DEFAULT_USER_AGENT
+    def __init__(self, verify_ssl: bool = True, user_agent: Optional[str] = None) -> None:
+        """Translator 인스턴스를 초기화합니다.
 
-    def _build_headers(self):
+        Args:
+            verify_ssl: SSL 인증서 검증 여부 (기본값: True).
+                        사내 보안 망이나 프록시 환경에서 SSLError 발생 시 False로 설정합니다.
+            user_agent: 사용자 지정 User-Agent 문자열 (미지정 시 기본값 사용).
+        """
+        self.verify_ssl: bool = verify_ssl
+        self.user_agent: str = user_agent or self.DEFAULT_USER_AGENT
+
+    def _build_headers(self) -> Dict[str, str]:
+        """HTTP 요청 공통 헤더 딕셔너리를 생성합니다.
+
+        Returns:
+            Dict[str, str]: Origin, Referer, Content-Type 등이 포함된 헤더 딕셔너리
+        """
         return {
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'ko',
@@ -48,39 +71,67 @@ class Translator:
             'User-Agent': self.user_agent,
         }
 
-    def _post(self, url, payload):
-        """내부 POST 요청 공통 처리"""
+    def _post(self, url: str, payload: Dict[str, Any]) -> requests.Response:
+        """파파고 API에 POST 요청을 전송하고 응답을 반환합니다.
+
+        Args:
+            url: 요청 엔드포인트 URL
+            payload: POST 요청 폼 데이터 딕셔너리
+
+        Returns:
+            requests.Response: requests 응답 객체
+
+        Raises:
+            Exception: HTTP 상태 코드가 200 OK가 아닌 경우 예외 발생
+        """
         if not self.verify_ssl:
             warnings.filterwarnings('ignore', message='Unverified HTTPS request')
-        resp = requests.post(
+
+        resp: requests.Response = requests.post(
             url,
             headers=self._build_headers(),
             data=payload,
             verify=self.verify_ssl,
         )
         if resp.status_code != 200:
-            raise Exception('HTTP 오류 [{}]: {}'.format(resp.status_code, resp.text))
+            raise Exception(f'HTTP 오류 [{resp.status_code}]: {resp.text}')
+
         return resp
 
-    def translate(self, text, source='ko', target='en',
-                  honorific=False, use_dict=True, dict_display=30, use_glossary=False):
-        """소스 언어를 대상 언어로 번역한다.
+    def translate(
+        self,
+        text: str,
+        source: str = 'ko',
+        target: str = 'en',
+        honorific: bool = False,
+        use_dict: bool = True,
+        dict_display: int = 30,
+        use_glossary: bool = False,
+    ) -> Response:
+        """원문 텍스트를 대상 언어로 번역합니다.
 
-        :param text: 번역할 원문 텍스트
-        :param source: 소스 언어 코드 (예: 'ko', 'en')
-        :param target: 대상 언어 코드
-        :param honorific: 존댓말 사용 여부 (한국어 번역 시 유효)
-        :param use_dict: 사전 검색 결과 포함 여부
-        :param dict_display: 사전 결과 최대 표시 수
-        :param use_glossary: 용어집 사용 여부
-        :rtype: Response
+        Args:
+            text: 번역할 원문 문자열
+            source: 원문 언어 코드 (기본값: 'ko')
+            target: 대상 언어 코드 (기본값: 'en')
+            honorific: 높임말 옵션 적용 여부 (기본값: False, 한국어 번역 시 적용)
+            use_dict: 사전 검색 결과 데이터 포함 여부 (기본값: True)
+            dict_display: 사전 검색 결과 표시 최대 개수 (기본값: 30)
+            use_glossary: 사용자 용어집 적용 여부 (기본값: False)
+
+        Returns:
+            Response: 번역 결과 객체 (translatedText, source, target, engine 등 포함)
+
+        Raises:
+            ValueError: 지원하지 않는 소스/타겟 언어 코드가 지정된 경우 예외 발생
+            Exception: 번역 API 호출 시 네트워크 오류가 발생한 경우 예외 발생
         """
         if source not in LANGUAGES:
-            raise ValueError('지원하지 않는 소스 언어입니다: {}'.format(source))
+            raise ValueError(f'지원하지 않는 소스 언어입니다: {source}')
         if target not in LANGUAGES:
-            raise ValueError('지원하지 않는 대상 언어입니다: {}'.format(target))
+            raise ValueError(f'지원하지 않는 대상 언어입니다: {target}')
 
-        payload = {
+        payload: Dict[str, Any] = {
             'source': source,
             'target': target,
             'text': text,
@@ -89,15 +140,23 @@ class Translator:
             'honorific': str(honorific).lower(),
             'dictDisplay': dict_display,
         }
-        resp = self._post(PAPAGO_TRANSLATE_URL, payload)
+
+        resp: requests.Response = self._post(PAPAGO_TRANSLATE_URL, payload)
         return Response.parse_json(resp.text)
 
-    def detect(self, text):
-        """텍스트의 언어를 자동 감지한다.
+    def detect(self, text: str) -> Optional[str]:
+        """입력 텍스트의 언어를 자동으로 감지합니다.
 
-        :param text: 감지할 텍스트
-        :return: 감지된 언어 코드 문자열 (예: 'ko', 'en')
+        Args:
+            text: 언어를 판별할 원문 문자열
+
+        Returns:
+            Optional[str]: 감지된 언어 코드 (예: 'ko', 'en', 'ja' 등), 감지 실패 시 None
+
+        Raises:
+            Exception: 언어 감지 API 호출 시 네트워크 오류가 발생한 경우 예외 발생
         """
-        payload = {'query': text}
-        resp = self._post(PAPAGO_DETECT_URL, payload)
-        return resp.json().get('langCode')
+        payload: Dict[str, str] = {'query': text}
+        resp: requests.Response = self._post(PAPAGO_DETECT_URL, payload)
+        data: Dict[str, Any] = resp.json()
+        return data.get('langCode')
